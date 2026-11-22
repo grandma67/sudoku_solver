@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "train:ocr": "tsx scripts/train-ocr.ts --final"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
@@ -16,10 +17,13 @@
     "react-dom": "^19.3.1"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.2.0",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.1"
