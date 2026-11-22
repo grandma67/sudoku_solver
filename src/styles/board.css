@@ -181,3 +181,15 @@
 @keyframes fade-in { from { opacity: 0; } }
 @keyframes slide-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes bounce { to { transform: translateY(-10px) rotate(4deg); } }
+
+/* Scan readings that need a human check. */
+.cell.flagged { box-shadow: inset 0 0 0 2px var(--hl-cause); }
+.cell.flagged::before {
+  content: '?';
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font: 700 calc(var(--cell) * 0.22) var(--font);
+  color: var(--hl-cause);
+}
+.cell.flagged.selected { box-shadow: inset 0 0 0 3px var(--accent); }

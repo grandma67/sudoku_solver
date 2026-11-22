@@ -600,3 +600,82 @@ textarea {
   .size-grid { grid-template-columns: repeat(2, 1fr); }
   .stats { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ---------- scanning ---------- */
+.scan-dialog { width: min(640px, 100%); }
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 16px;
+  border: 2px dashed color-mix(in srgb, var(--text) 25%, transparent);
+  border-radius: var(--radius);
+  text-align: center;
+  transition: border-color 0.2s, background 0.2s;
+}
+.dropzone.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.dropzone p { margin: 0; max-width: 420px; }
+.scan-art { position: relative; width: 84px; height: 84px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.scan-art::before {
+  content: '';
+  grid-area: 1 / 1 / 4 / 4;
+  border-radius: 8px;
+  background:
+    linear-gradient(var(--board-border) 0 0) 33.3% 0 / 2px 100% no-repeat,
+    linear-gradient(var(--board-border) 0 0) 66.6% 0 / 2px 100% no-repeat,
+    linear-gradient(var(--board-border) 0 0) 0 33.3% / 100% 2px no-repeat,
+    linear-gradient(var(--board-border) 0 0) 0 66.6% / 100% 2px no-repeat,
+    var(--surface-2);
+}
+.scan-art span { position: absolute; width: 18px; height: 18px; border: 3px solid var(--accent); }
+.scan-art span:nth-child(1) { top: -6px; left: -6px; border-right: 0; border-bottom: 0; }
+.scan-art span:nth-child(2) { top: -6px; right: -6px; border-left: 0; border-bottom: 0; }
+.scan-art span:nth-child(3) { bottom: -6px; right: -6px; border-left: 0; border-top: 0; }
+.scan-art span:nth-child(4) { bottom: -6px; left: -6px; border-right: 0; border-top: 0; }
+.size-picker { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 6px; }
+.tips { padding-left: 18px; margin: 10px 0 0; line-height: 1.6; }
+.scan-processing { position: relative; border-radius: var(--radius); overflow: hidden; min-height: 240px; }
+.scan-processing img { display: block; width: 100%; max-height: 60vh; object-fit: contain; filter: saturate(0.6); }
+.scan-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  box-shadow: 0 0 16px 4px var(--accent);
+  animation: beam 1.4s ease-in-out infinite alternate;
+  z-index: 6;
+}
+@keyframes beam { from { top: 5%; } to { top: 95%; } }
+.camera { display: flex; flex-direction: column; gap: 10px; }
+.camera-view { position: relative; border-radius: var(--radius); overflow: hidden; background: #000; aspect-ratio: 4 / 3; }
+.camera-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.camera-guide { position: absolute; inset: 12% 22%; pointer-events: none; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.35); border-radius: 6px; }
+.camera-guide i { position: absolute; width: 28px; height: 28px; border: 4px solid #fff; }
+.camera-guide i:nth-child(1) { top: -4px; left: -4px; border-right: 0; border-bottom: 0; }
+.camera-guide i:nth-child(2) { top: -4px; right: -4px; border-left: 0; border-bottom: 0; }
+.camera-guide i:nth-child(3) { bottom: -4px; right: -4px; border-left: 0; border-top: 0; }
+.camera-guide i:nth-child(4) { bottom: -4px; left: -4px; border-right: 0; border-top: 0; }
+.corner-editor { position: relative; width: 100%; max-height: 60vh; margin: 8px auto; touch-action: none; user-select: none; }
+.corner-editor img { width: 100%; height: 100%; display: block; border-radius: calc(var(--radius) * 0.6); }
+.corner-editor svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.corner-editor polygon { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: var(--accent); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.corner-editor .handle {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  touch-action: none;
+  padding: 0;
+}
+.corner-editor .handle:active { cursor: grabbing; transform: scale(1.2); }
+.scan-summary { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: start; }
+.scan-summary img { width: 96px; height: 96px; border-radius: 8px; object-fit: cover; border: 1px solid color-mix(in srgb, var(--text) 15%, transparent); }
+.scan-summary p { margin: 0 0 8px; }
+.scan-summary .btn { padding: 6px 10px; font-size: 13px; }

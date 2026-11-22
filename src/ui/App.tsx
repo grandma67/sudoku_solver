@@ -14,6 +14,7 @@ import { getSymbolSet } from '../themes/symbols';
 import { applyTheme, getTheme } from '../themes/themes';
 import { callEngine } from '../workers/client';
 import type { Responses } from '../workers/protocol';
+import type { Gray, Point } from '../scan/image';
 import { Background } from './Background';
 import { Board } from './Board';
 import { CustomPanel } from './CustomPanel';
@@ -21,6 +22,7 @@ import { HintCard, type HintState } from './HintCard';
 import {
   IconBrain,
   IconBulb,
+  IconCamera,
   IconClock,
   IconEdit,
   IconErase,
@@ -36,6 +38,7 @@ import {
   IconWand,
 } from './icons';
 import { NewGameDialog } from './NewGameDialog';
+import { ScanDialog, type Photo, type ScanOutcome } from './ScanDialog';
 import { NumberPad } from './NumberPad';
 import { SettingsDialog } from './SettingsDialog';
 import { SolverPanel } from './SolverPanel';
@@ -53,12 +56,40 @@ interface Walkthrough {
   source: 'game' | 'custom';
 }
 
+interface ScanInfo {
+  photo: Photo;
+  /** Perspective-corrected grid as an image URL. */
+  warpedUrl: string;
+  corners: Point[];
+  size?: number;
+  uncertain: number[];
+  corrected: number[];
+}
+
 interface CustomState {
   spec: BoardSpec;
   values: number[];
   selected: number | null;
   analysis: Responses['analyze'] | null;
+  scan?: ScanInfo;
 }
+
+function grayToUrl(g: Gray): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = g.width;
+  canvas.height = g.height;
+  const ctx = canvas.getContext('2d')!;
+  const img = ctx.createImageData(g.width, g.height);
+  g.data.forEach((v, i) => {
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  });
+  ctx.putImageData(img, 0, 0);
+  return canvas.toDataURL('image/jpeg', 0.8);
+}
+
+const unflag = (scan: ScanInfo | undefined, cell: number): ScanInfo | undefined =>
+  scan && { ...scan, uncertain: scan.uncertain.filter((i) => i !== cell), corrected: scan.corrected.filter((i) => i !== cell) };
 
 const specFor = (sizeId: string): BoardSpec => (SIZE_PRESETS.find((p) => p.id === sizeId) ?? SIZE_PRESETS[3]).spec;
 const sizeLabel = (spec: BoardSpec) => `${spec.boxRows * spec.boxCols}×${spec.boxRows * spec.boxCols}`;
@@ -81,6 +112,7 @@ export function App() {
   const [paused, setPaused] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(false);
+  const [scanDialog, setScanDialog] = useState<{ initial?: { photo: Photo; corners: Point[]; size?: number }; blob?: Blob } | null>(null);
 
   const game = state.game;
   const theme = getTheme(settings.themeId);
@@ -226,7 +258,7 @@ export function App() {
           if (!c || c.selected === null) return c;
           const values = [...c.values];
           values[c.selected] = values[c.selected] === value ? 0 : value;
-          return { ...c, values, analysis: null };
+          return { ...c, values, analysis: null, scan: unflag(c.scan, c.selected) };
         });
       } else if (mode === 'play') {
         dispatch({ type: 'input', value, asNote, autoRemoveNotes: settings.autoRemoveNotes });
@@ -241,7 +273,7 @@ export function App() {
         if (!c || c.selected === null) return c;
         const values = [...c.values];
         values[c.selected] = 0;
-        return { ...c, values, analysis: null };
+        return { ...c, values, analysis: null, scan: unflag(c.scan, c.selected) };
       });
     else if (mode === 'play') dispatch({ type: 'erase' });
   }, [mode]);
@@ -361,16 +393,58 @@ export function App() {
     setMode('custom');
   }, [game, settings.sizeId]);
 
-  const checkCustom = useCallback(async () => {
-    if (!custom) return;
+  const analyzeCustom = useCallback(async (target: CustomState) => {
     setBusy('Checking puzzle…');
     try {
-      const analysis = await callEngine('analyze', { spec: custom.spec, values: custom.values });
-      setCustom((c) => (c ? { ...c, analysis } : c));
+      const analysis = await callEngine('analyze', { spec: target.spec, values: target.values });
+      setCustom((c) => (c && c.values === target.values ? { ...c, analysis } : c));
     } finally {
       setBusy(null);
     }
-  }, [custom]);
+  }, []);
+  const checkCustom = useCallback(() => custom && analyzeCustom(custom), [custom, analyzeCustom]);
+
+  const onScanned = useCallback(
+    ({ result, photo, size }: ScanOutcome) => {
+      const next: CustomState = {
+        spec: result.spec,
+        values: result.values,
+        selected: result.uncertain[0] ?? null,
+        analysis: null,
+        scan: {
+          photo,
+          warpedUrl: grayToUrl(result.warped),
+          corners: result.corners,
+          size,
+          uncertain: result.uncertain,
+          corrected: result.corrected,
+        },
+      };
+      setScanDialog(null);
+      setHint(null);
+      setWalk(null);
+      setCustom(next);
+      setMode('custom');
+      const givens = result.values.filter(Boolean).length;
+      showToast(`Read ${givens} givens${result.uncertain.length ? ` · ${result.uncertain.length} to check` : ''}`);
+      analyzeCustom(next);
+    },
+    [analyzeCustom, showToast],
+  );
+
+  // Paste an image anywhere to scan it.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (scanDialog || isTyping(e as unknown as KeyboardEvent)) return;
+      const file = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith('image/'))?.getAsFile();
+      if (file) {
+        e.preventDefault();
+        setScanDialog({ blob: file });
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [scanDialog]);
 
   const share = useCallback(async () => {
     if (!game) return;
@@ -386,7 +460,7 @@ export function App() {
   // ---- keyboard ------------------------------------------------------------
   const keyHandler = useRef<(e: KeyboardEvent) => void>(() => {});
   keyHandler.current = (e: KeyboardEvent) => {
-    if (isTyping(e) || dialog || busy) return;
+    if (isTyping(e) || dialog || busy || scanDialog) return;
     const mod = e.metaKey || e.ctrlKey;
     if (mode === 'solve' && walk) {
       if (e.key === 'ArrowRight') setWalkIndex(walk.index + 1);
@@ -467,6 +541,7 @@ export function App() {
         selected={custom.selected}
         onSelect={(cell) => setCustom((c) => (c ? { ...c, selected: cell } : c))}
         conflicts={conflicts}
+        flagged={custom.scan ? new Set(custom.scan.uncertain) : undefined}
         highlightPeers={settings.highlightPeers}
         highlightSame={settings.highlightSame}
       />
@@ -512,6 +587,9 @@ export function App() {
         <nav className="actions">
           <button className="btn primary" onClick={() => setDialog('new')}>
             <IconPlus /> <span className="label">New game</span>
+          </button>
+          <button className="btn" onClick={() => setScanDialog({})} title="Scan a puzzle from a photo or camera">
+            <IconCamera /> <span className="label">Scan</span>
           </button>
           <button className={`btn${mode === 'custom' ? ' active' : ''}`} onClick={openCustom} title="Enter your own puzzle">
             <IconEdit /> <span className="label">Custom</span>
@@ -598,14 +676,29 @@ export function App() {
                 onPaste={(text) => {
                   try {
                     const values = decodePuzzle(custom.spec, text);
-                    setCustom({ ...custom, values, analysis: null });
+                    setCustom({ ...custom, values, analysis: null, scan: undefined });
                     return null;
                   } catch (err) {
                     return (err as Error).message;
                   }
                 }}
-                onClear={() => setCustom({ ...custom, values: custom.values.map(() => 0), analysis: null })}
+                onClear={() => setCustom({ ...custom, values: custom.values.map(() => 0), analysis: null, scan: undefined })}
                 onCheck={checkCustom}
+                scan={
+                  custom.scan
+                    ? {
+                        warpedUrl: custom.scan.warpedUrl,
+                        uncertain: custom.scan.uncertain.length,
+                        corrected: custom.scan.corrected.length,
+                        givens: custom.values.filter(Boolean).length,
+                      }
+                    : undefined
+                }
+                onScan={() => setScanDialog({})}
+                onAdjustScan={() =>
+                  custom.scan &&
+                  setScanDialog({ initial: { photo: custom.scan.photo, corners: custom.scan.corners, size: custom.scan.size } })
+                }
                 onPlay={() => {
                   if (!custom.analysis?.solution) return;
                   dispatch({
@@ -713,7 +806,7 @@ export function App() {
       </main>
 
       <footer className="footer muted small">
-        Sudoku Studio · {SIZE_PRESETS.length} board sizes · 14 solving techniques · works offline in your browser
+        Sudoku Studio · {SIZE_PRESETS.length} board sizes · 14 solving techniques · photo scanning · runs entirely in your browser
       </footer>
 
       {dialog === 'new' ? (
@@ -730,6 +823,9 @@ export function App() {
       {dialog === 'settings' ? <SettingsDialog settings={settings} onChange={patchSettings} onClose={() => setDialog(null)} /> : null}
       {dialog === 'win' && game ? (
         <WinDialog game={game} onNew={() => setDialog('new')} onClose={() => setDialog(null)} />
+      ) : null}
+      {scanDialog ? (
+        <ScanDialog initial={scanDialog.initial} blob={scanDialog.blob} onResult={onScanned} onClose={() => setScanDialog(null)} />
       ) : null}
       {toast ? (
         <div className="toast" role="status">

@@ -17,6 +17,8 @@ export interface BoardProps {
   highlights?: Highlights | null;
   conflicts?: Set<number>;
   wrong?: Set<number>;
+  /** Cells to double-check (e.g. uncertain scan readings). */
+  flagged?: Set<number>;
   highlightPeers?: boolean;
   highlightSame?: boolean;
   celebrate?: boolean;
@@ -151,6 +153,7 @@ export function Board(props: BoardProps) {
     if (hl.unitCells.has(cell)) flags.push('in-unit');
     if (props.conflicts?.has(cell)) flags.push('conflict');
     if (props.wrong?.has(cell)) flags.push('wrong');
+    if (props.flagged?.has(cell)) flags.push('flagged');
     return (
       <Cell
         key={cell}

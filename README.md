@@ -23,11 +23,43 @@ A themeable sudoku game for the browser. It plays on **any board size** (4×4 up
 - **8 symbol sets**: numbers, alphanumeric, letters, Greek, fruit 🍎, animals 🐶, space 🪐 and colors.
 - Pencil notes, auto-notes, undo/redo, mistake tracking, timer and pause, keyboard support,
   mobile layout, and auto-save to `localStorage`.
+- **Scan from a photo or camera**: point your camera at a sudoku from a newspaper, book or screen
+  (or upload, drop or paste an image). The scanner rebuilds it as a digital board. See below.
 - **Custom puzzles**: type or paste your own puzzle. The game checks that it has exactly one
   solution, rates its difficulty, and lets you play it or watch it solved.
 - **Share links**: the puzzle is encoded in the URL hash.
 
 ![16×16 in the Neon Synthwave theme](docs/synthwave-16.png)
+
+## Photo scanning
+
+Scanning runs entirely in the browser, inside a Web Worker. Nothing is uploaded anywhere.
+
+1. **Find the grid.** An adaptive threshold separates ink from paper. Candidate blobs of dark ink,
+   and of light ink for light-on-dark boards, are perspective-corrected. Each one is scored by how
+   much it looks like a grid of lines in both directions.
+2. **Detect the size.** Each supported size has a distinct box layout. The detector matches the
+   measured line strengths against those layouts, so it works even when thin cell lines are faint.
+3. **Read the cells.** Each cell's glyph is normalized MNIST-style and classified by a small neural
+   network (int8 weights, 56 KB). Printed `10`–`16` on big boards are split into two glyphs.
+4. **Self-check.** Each cell the network is unsure about is limited to the values it found
+   plausible, and the solver searches for the one grid that fits. Cells it still can't settle are
+   marked with a dashed `?` in the editor for you to check against the photo.
+
+If the grid isn't found automatically, you can drag the four corners onto it yourself.
+
+The recognizer is trained on synthetic cells rendered in 66 fonts, including handwriting styles.
+It scores about 98% on fonts held out of training. To retrain (on macOS):
+
+```bash
+# optional: extra OFL fonts (the app's own fonts + handwriting) in scripts/.fonts/*.ttf
+npm run train:ocr                       # writes src/scan/model.json
+npx tsx scripts/debug-scan.ts out/ photo.jpg   # inspect the warped grid and readings
+```
+
+`tests/scan.test.ts` runs the full pipeline on 12 photo-like fixtures: app boards in 8 themes and
+6 sizes re-photographed with perspective, blur and noise, plus printed newspaper-style puzzles in
+fonts the model never saw.
 
 ## Development
 
@@ -53,10 +85,11 @@ The workflow in `.github/workflows/deploy.yml` tests, builds and deploys on ever
 
 ```
 src/
+  scan/       photo scanner: grid detection, perspective warp, glyph extraction, digit model
   engine/     pure TypeScript: geometry for any box shape, bitmask candidates,
               brute-force search, generator, serialization
   solver/     techniques (one file per family), logical solver, difficulty grading
-  workers/    Web Worker that runs generate / analyze / solve off the main thread
+  workers/    Web Workers: generate / analyze / solve, and photo scanning
   themes/     data-only themes (CSS variables + effect) and symbol sets
   state/      game reducer (notes, undo/redo, hints), settings and persistence
   ui/         React components

@@ -45,3 +45,5 @@ export const IconBrain = make(
 export const IconRestart = make('M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5');
 export const IconClock = make('M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 6v6l4 2');
 export const IconCheck = make('M20 6 9 17l-5-5');
+export const IconCamera = make('M3 8a2 2 0 0 1 2-2h2l2-3h6l2 3h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2ZM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z');
+export const IconImage = make('M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2ZM8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM21 15l-5-5L5 21');
