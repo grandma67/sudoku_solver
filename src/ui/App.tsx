@@ -446,16 +446,41 @@ export function App() {
     return () => window.removeEventListener('paste', onPaste);
   }, [scanDialog]);
 
+  /** The puzzle currently on screen: the custom/scanned board, the walkthrough's puzzle, or the game. */
+  const sharedPuzzle = useCallback((): { spec: BoardSpec; givens: number[] } | null => {
+    if (mode === 'custom' && custom) return { spec: custom.spec, givens: custom.values };
+    if (mode === 'solve' && walk) return { spec: walk.spec, givens: walk.frames[0].values.map((v, i) => (walk.given[i] ? v : 0)) };
+    return game ? { spec: game.spec, givens: game.givens } : null;
+  }, [mode, custom, walk, game]);
+
   const share = useCallback(async () => {
-    if (!game) return;
-    const url = `${window.location.origin}${window.location.pathname}${puzzleToHash(game.spec, game.givens)}`;
+    const target = sharedPuzzle();
+    if (!target || !target.givens.some(Boolean)) {
+      showToast('Nothing to share yet');
+      return;
+    }
+    if (mode === 'custom' && custom) {
+      // A link to an invalid puzzle would be rejected when opened, so check it first.
+      let analysis = custom.analysis;
+      if (!analysis) {
+        const values = custom.values;
+        const result = await callEngine('analyze', { spec: custom.spec, values });
+        setCustom((c) => (c && c.values === values ? { ...c, analysis: result } : c));
+        analysis = result;
+      }
+      if (analysis.status !== 'unique') {
+        showToast('Only puzzles with exactly one solution can be shared — see the check result.');
+        return;
+      }
+    }
+    const url = `${window.location.origin}${window.location.pathname}${puzzleToHash(target.spec, target.givens)}`;
     try {
       await navigator.clipboard.writeText(url);
       showToast('Puzzle link copied to clipboard');
     } catch {
       window.prompt('Copy this link:', url);
     }
-  }, [game, showToast]);
+  }, [sharedPuzzle, mode, custom, showToast]);
 
   // ---- keyboard ------------------------------------------------------------
   const keyHandler = useRef<(e: KeyboardEvent) => void>(() => {});
@@ -594,7 +619,7 @@ export function App() {
           <button className={`btn${mode === 'custom' ? ' active' : ''}`} onClick={openCustom} title="Enter your own puzzle">
             <IconEdit /> <span className="label">Custom</span>
           </button>
-          <button className="icon-btn" onClick={share} title="Share puzzle link" aria-label="Share puzzle" disabled={!game}>
+          <button className="icon-btn" onClick={share} title="Share puzzle link" aria-label="Share puzzle">
             <IconShare />
           </button>
           <button className="icon-btn" onClick={() => setDialog('settings')} title="Settings" aria-label="Settings">
