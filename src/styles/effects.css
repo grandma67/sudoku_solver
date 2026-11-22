@@ -1,0 +1,94 @@
+/* Theme background effects, selected by <html data-effect="…">. */
+.fx {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.fx > div { position: absolute; }
+
+/* grain: paper texture */
+[data-effect='grain'] .fx-a {
+  inset: 0;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 .3 0 0 0 0 .25 0 0 0 0 .15 0 0 0 .25 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* blobs: soft floating gradients */
+[data-effect='blobs'] .fx > div {
+  width: 46vmax;
+  height: 46vmax;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.35;
+  animation: drift 26s ease-in-out infinite alternate;
+}
+[data-effect='blobs'] .fx-a { background: var(--accent); top: -15vmax; left: -10vmax; }
+[data-effect='blobs'] .fx-b { background: var(--accent-2); bottom: -20vmax; right: -12vmax; animation-delay: -8s; }
+[data-effect='blobs'] .fx-c { background: var(--entry); top: 40%; left: 45%; width: 26vmax; height: 26vmax; animation-delay: -16s; opacity: 0.2; }
+
+/* synthgrid: neon sun + perspective floor */
+[data-effect='synthgrid'] .fx-a {
+  left: 50%;
+  bottom: 30vh;
+  width: 46vmin;
+  height: 46vmin;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: linear-gradient(#ffd319 10%, #ff2975 60%, #8c1eff);
+  opacity: 0.35;
+  mask: repeating-linear-gradient(180deg, #000 0 14px, transparent 14px 18px);
+  filter: blur(1px);
+}
+[data-effect='synthgrid'] .fx-b {
+  left: -50%;
+  right: -50%;
+  bottom: -10vh;
+  height: 45vh;
+  background-image:
+    linear-gradient(#ff2a6d 2px, transparent 2px),
+    linear-gradient(90deg, #ff2a6d 2px, transparent 2px);
+  background-size: 60px 60px;
+  transform: perspective(300px) rotateX(60deg);
+  transform-origin: top;
+  opacity: 0.35;
+  mask: linear-gradient(transparent, #000 40%);
+  animation: grid-move 2.5s linear infinite;
+}
+
+/* scanlines: CRT terminal */
+[data-effect='scanlines'] .fx-a {
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.35) 0 1px, transparent 1px 3px);
+  z-index: 100;
+  position: fixed;
+}
+[data-effect='scanlines'] .fx-b {
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.6));
+  animation: flicker 4s infinite;
+}
+
+/* bubbles: rising soft circles */
+[data-effect='bubbles'] .fx > div {
+  inset: -20% 0 0 0;
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--accent) 35%, transparent) 0 6px, transparent 7px),
+    radial-gradient(circle, color-mix(in srgb, var(--accent-2) 30%, transparent) 0 4px, transparent 5px);
+  background-size: 180px 220px, 130px 160px;
+  background-position: 0 0, 60px 90px;
+  animation: rise 24s linear infinite;
+  opacity: 0.6;
+}
+[data-effect='bubbles'] .fx-b { animation-duration: 36s; background-size: 260px 300px, 200px 240px; opacity: 0.4; }
+[data-effect='bubbles'] .fx-c { display: none; }
+
+@keyframes drift { to { transform: translate(12vmax, 8vmax) scale(1.2); } }
+@keyframes grid-move { to { background-position: 0 60px; } }
+@keyframes rise { to { transform: translateY(-20%); } }
+@keyframes flicker { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition: none !important; }
+}
