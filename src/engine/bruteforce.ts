@@ -12,12 +12,13 @@ export interface SearchResult {
 /**
  * Bitmask backtracking with the minimum-remaining-values heuristic.
  * Counts solutions up to `limit`. Optional rng randomizes value order (used for filling grids).
+ * Optional `domains` restrict empty cells to a candidate mask (0 = unrestricted).
  */
 export function searchSolutions(
   geo: Geometry,
   values: ArrayLike<number>,
   limit = 2,
-  opts: { rng?: Rng; nodeBudget?: number } = {},
+  opts: { rng?: Rng; nodeBudget?: number; domains?: Uint16Array } = {},
 ): SearchResult {
   const n = geo.size;
   const { rowOf, colOf, boxOf, full } = geo;
@@ -43,6 +44,7 @@ export function searchSolutions(
 
   const budget = opts.nodeBudget ?? Infinity;
   const rng = opts.rng;
+  const domains = opts.domains;
   let nodes = 0;
   let count = 0;
   let solution: Uint8Array | null = null;
@@ -57,7 +59,8 @@ export function searchSolutions(
     for (let i = 0; i < empties.length; i++) {
       const cell = empties[i];
       if (grid[cell]) continue;
-      const m = full & ~(rowM[rowOf[cell]] | colM[colOf[cell]] | boxM[boxOf[cell]]);
+      let m = full & ~(rowM[rowOf[cell]] | colM[colOf[cell]] | boxM[boxOf[cell]]);
+      if (domains && domains[cell]) m &= domains[cell];
       const k = popcount(m);
       if (k === 0) return false;
       if (k < bestCount) {
